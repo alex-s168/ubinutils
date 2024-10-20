@@ -1,4 +1,4 @@
-#include "elf.h"
+#include "../lib/elf.h"
 #include <inttypes.h>
 #include <string.h>
 #include <stdbool.h>

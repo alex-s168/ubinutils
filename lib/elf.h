@@ -24,7 +24,9 @@
 
 #include <stdint.h>
 
-#define PACKED __attribute__ ((packed))
+#ifndef PACKED
+# define PACKED __attribute__ ((packed))
+#endif 
 
 typedef uint32_t Elf32_Addr;
 typedef uint32_t Elf32_Off;
