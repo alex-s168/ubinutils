@@ -232,7 +232,6 @@ int Elf_getSymTable(Elf64_Sym** heapDest, size_t* sizeDest, Elf_Header const* el
 
 void OpElf_close(OpElf* elf)
 {
-  fclose(elf->file);
   free(elf->sectionHeaders);
   free(elf->master_strtab);
 }
@@ -242,12 +241,10 @@ int OpElf_open(OpElf* dest, FILE* consumeFile, void (*err)(const char *))
   dest->file = consumeFile;
 
   if ( Elf_decodeElfHeader(&dest->header, consumeFile, err) ) {
-    fclose(consumeFile);
     return 1;
   }
 
   if ( Elf_getStrTable(&dest->master_strtab, NULL, dest->header.part3.shstrndx, &dest->header, consumeFile, err) ) {
-    fclose(consumeFile);
     return 1;
   }
 
@@ -255,7 +252,6 @@ int OpElf_open(OpElf* dest, FILE* consumeFile, void (*err)(const char *))
   if ( !dest->sectionHeaders ) {
     if ( err ) err("out of memory");
     free(dest->master_strtab);
-    fclose(consumeFile);
     return 1;
   }
 

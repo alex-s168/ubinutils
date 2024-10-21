@@ -429,7 +429,7 @@ typedef struct {
 } OpElf;
 
 void OpElf_close(OpElf* elf);
-int OpElf_open(OpElf* dest, FILE* consumeFile, void (*err)(const char *));
+int OpElf_open(OpElf* dest, FILE* file /** will not close */, void (*err)(const char *));
 ssize_t OpElf_findSection(OpElf const* elf, const char * want);
 
 #endif

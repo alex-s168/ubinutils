@@ -18,7 +18,6 @@ int ArIter_open(ArIter* dest, FILE* consumeFile)
 
 void ArIter_close(ArIter* i)
 {
-  fclose(i->file);
 }
 
 void ArIter_rewind(ArIter* i)
@@ -146,6 +145,9 @@ char * SmartArchive_nextFileNameHeap(SmartArchive* archv)
     char * space = strchr(heap, ' ');
     if ( space )
       *space = '\0';
+    char * slash = strchr(heap, '/');
+    if ( slash )
+      *slash = '\0';
     return heap;
   }
 }

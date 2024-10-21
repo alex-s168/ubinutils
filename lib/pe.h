@@ -163,6 +163,6 @@ const char* CoffSym_name(CoffSym const* sym, OpPe* pe);
 void OpPe_rewindToSyms(OpPe* pe);
 void OpPe_nextSym(CoffSym* out, OpPe* pe);
 void OpPe_close(OpPe* pe);
-int OpPe_open(OpPe* dest, FILE* file);
+int OpPe_open(OpPe* dest, FILE* file /** will not close */);
 
 #endif 

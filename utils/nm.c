@@ -1,5 +1,6 @@
 #include "../lib/elf.h"
 #include "../lib/pe.h"
+#include "../lib/ar.h"
 #include <inttypes.h>
 #include <string.h>
 #include <stdbool.h>
@@ -76,7 +77,7 @@ static void nmElf(OpElf* elf, size_t ptrstrwidth)
         else if ( sname && !strcmp(sname, ".rodata") )
           id = is_global ? 'R' : 'r';
 
-        printf("\t%c\t", id);
+        printf(" %c ", id);
 
         uint32_t name = syms[u].name;
         if ( name && *(tsstab + name) ) {
@@ -151,7 +152,7 @@ static void nmPe(OpPe* pe, size_t ptrstrwidth)
         else if ( sname && !strcmp(sname, ".rdata") )
           type = is_global ? 'R' : 'r';
 
-        printf("\t%c\t%s\n", type, name);
+        printf(" %c %s\n", type, name);
       }
     }
 
@@ -161,6 +162,62 @@ static void nmPe(OpPe* pe, size_t ptrstrwidth)
     i += sym.numAuxSyms;
   }
 }
+
+static int nmObjfile(FILE* file, size_t ptrstrwidth)
+{
+  OpElf elf;
+  rewind(file);
+  if ( !OpElf_open(&elf, file, NULL) )
+  {
+    nmElf(&elf, ptrstrwidth);
+    OpElf_close(&elf);
+    return 0;
+  }
+
+  OpPe pe;
+  rewind(file);
+  if ( !OpPe_open(&pe, file) )
+  {
+    nmPe(&pe, ptrstrwidth);
+    OpPe_close(&pe);
+    return 0;
+  }
+
+  return 1;
+}
+
+static void nmAr(SmartArchive* ar, size_t ptrstrwidth)
+{
+  SmartArchive_rewind(ar);
+
+  char* name;
+  while ( (name = SmartArchive_nextFileNameHeap(ar)) )
+  {
+    printf("%s:\n", name);
+    free(name);
+
+    void* data; size_t size;
+    if ( SmartArchive_continueWithData(&data, &size, ar) )
+    {
+      fprintf(stderr, "out of memory\n");
+      return;
+    }
+
+    FILE* file = fmemopen(data, size, "r");
+
+    if ( nmObjfile(file, ptrstrwidth) )
+    {
+      printf("unrecognized format\n");
+    }
+
+    fclose(file);
+    free(data);
+
+    fputc('\n', stdout);
+  }
+}
+
+static char supportedFormatsStr[] = "Support file formats: {,AR of }{ELF{32,64},PE,COFF}";
 
 int main(int argc, char const* const* argv)
 {
@@ -172,7 +229,7 @@ int main(int argc, char const* const* argv)
   }
 
   if ( argc != 2 ) {
-    fprintf(stderr, "invalid usage!\nusage: %s [file]\n", argv[0]);
+    fprintf(stderr, "Usage: %s [file]\n%s\n", argv[0], supportedFormatsStr);
     return 1;
   }
 
@@ -182,24 +239,23 @@ int main(int argc, char const* const* argv)
     return 1;
   }
 
-  OpElf elf;
-  OpPe pe;
-
-  if ( !OpElf_open(&elf, f, NULL) )
+  SmartArchive ar;
+  rewind(f);
+  if ( !SmartArchive_open(&ar, f ) )
   {
-    nmElf(&elf, ptrstrwidth);
-    OpElf_close(&elf);
+    nmAr(&ar, ptrstrwidth);
+    SmartArchive_close(&ar);
+    fclose(f);
     return 0;
   }
 
-  f = fopen(argv[1], "rb");
-  if ( !OpPe_open(&pe, f) )
+  if ( !nmObjfile(f, ptrstrwidth) )
   {
-    nmPe(&pe, ptrstrwidth);
-    OpPe_close(&pe);
+    fclose(f);
     return 0;
   }
 
-  fprintf(stderr, "Unsupported file format! Support file formats: ELF, PE, COFF\n");
+  fprintf(stderr, "Unsupported file format! %s\n", supportedFormatsStr);
+  fclose(f);
   return 1;
 }

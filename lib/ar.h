@@ -35,7 +35,7 @@ typedef struct {
   void* exFileNames;
 } SmartArchive;
 
-int ArIter_open(ArIter* dest, FILE* consumeFile);
+int ArIter_open(ArIter* dest, FILE* file /** will not close */);
 void ArIter_close(ArIter* i);
 void ArIter_rewind(ArIter* i);
 bool ArIter_hasNext(ArIter* i);
@@ -45,7 +45,7 @@ void ArIter_readDataAndNext(void* buf, ArIterFileHeader const* hd, ArIter* i);
 void ArIter_noDataAndNext(ArIterFileHeader const* hd, ArIter* i);
 int ArIter_findNext(void** heapOut, size_t* sizeOut, ArIter* i, char const searchNam[16]);
 
-int SmartArchive_open(SmartArchive* dest, FILE* consumeFile);
+int SmartArchive_open(SmartArchive* dest, FILE* file /** will not close */);
 void SmartArchive_close(SmartArchive* archv);
 void SmartArchive_rewind(SmartArchive* archv);
 char * SmartArchive_nextFileNameHeap(SmartArchive* archv);

@@ -53,7 +53,6 @@ void OpPe_close(OpPe* pe)
 {
   free(pe->sections);
   free(pe->heapStrTab);
-  fclose(pe->file);
 }
 
 /** FIle gets consumed */ 
@@ -86,7 +85,6 @@ int OpPe_open(OpPe* dest, FILE* file)
     fread(sig, 4, 1, file);
     if ( memcmp(sig, "PE\0", 4) ) {
       puts(sig);
-      fclose(file);
       return 1;
     }
   }
@@ -113,7 +111,6 @@ int OpPe_open(OpPe* dest, FILE* file)
 
   dest->sections = malloc(dest->header.numSections * sectionSize);
   if ( !dest->sections ) {
-    fclose(file);
     return 1;
   }
 
@@ -162,7 +159,6 @@ int OpPe_open(OpPe* dest, FILE* file)
   dest->heapStrTab = malloc(strtabuz);
   if ( !dest->heapStrTab ) {
     free(dest->sections);
-    fclose(file);
     return 1;
   }
 
