@@ -2,6 +2,8 @@
 
 int ArIter_open(ArIter* dest, FILE* consumeFile)
 {
+  rewind(consumeFile);
+
   dest->file = consumeFile;
 
   char magic[8];
@@ -45,7 +47,7 @@ void ArIter_beginIter(ArIterFileHeader* hdest, ArIter* i)
 
 void ArIter_rewindBeginIter(ArIter* i) 
 {
-  fseek(i->file, -sizeof(Ar_FileHeader), SEEK_CUR);
+  fseek(i->file, - (long) sizeof(Ar_FileHeader), SEEK_CUR);
 }
 
 void ArIter_readDataAndNext(void* buf, ArIterFileHeader const* hd, ArIter* i)

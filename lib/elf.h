@@ -24,6 +24,14 @@
 
 #include <stdint.h>
 
+#if __POINTER_WIDTH__  == 64 
+# define ssize_t int64_t
+#elif __POINTER_WIDTH__ == 32 
+# define ssize_t int32_t 
+#elif __POINTER_WIDTH__ == 16
+# define ssize_t int16_t 
+#endif
+
 #ifndef PACKED
 # define PACKED __attribute__ ((packed))
 #endif 

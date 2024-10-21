@@ -1,32 +1,9 @@
 #include "elf.h"
+#include "utils.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
-#define PLACE(valty, val) \
-        ((valty*)((valty[]) {val}))
-
-#define is_bigendian() ( (* ((char*) PLACE(int, 1)) ) == 0 )
-
-static void memrevcpy(void* restrict dest, void const* restrict src, size_t bytes)
-{
-  if (bytes == 0) return;
-  unsigned char * udst = dest;
-  unsigned char const * usrc = src;
-  size_t d = bytes - 1;
-  for (size_t i = 0; i < bytes; i ++) {
-    udst[d--] = usrc[i];
-  }
-}
-
-#define endianess_swap(varr) \
-  { \
-    typeof(varr) _src = varr; \
-    typeof(varr) _res; \
-    memrevcpy( &_res, &_src, sizeof(_src) ); \
-    varr = _res; \
-  }
 
 static bool Elf_shouldSwapEndianess(Elf_Header const* header) {
   return (header->begin.datat == ELFDATA_BIG) != is_bigendian();
@@ -37,22 +14,21 @@ int Elf_decodeElfHeader(Elf_Header* dest, FILE* file, void (*err)(const char *))
 {
   int status = 0;
 
-  fseek(file, 0, SEEK_SET);
   fread(dest, sizeof(dest->begin) + sizeof(dest->part1), 1, file);
 
   if ( memcmp(dest->begin.magic, "\x7f" "ELF", 4) ) {
     status = 1;
-    err("invalid file magic sequence");
+    if ( err ) err("invalid file magic sequence");
   }
 
   if ( !(dest->begin.clazz == ELFCLASS_32 || dest->begin.clazz == ELFCLASS_64) ) {
     status = 1;
-    err("invalid elf class");
+    if ( err ) err("invalid elf class");
   }
 
   if ( !(dest->begin.datat == ELFDATA_BIG || dest->begin.datat == ELFDATA_LITTLE) ) {
     status = 1;
-    err("invalid elf data type");
+    if ( err ) err("invalid elf data type");
   }
 
   if ( status ) 
@@ -99,12 +75,12 @@ int Elf_decodeElfHeader(Elf_Header* dest, FILE* file, void (*err)(const char *))
 
   if (dest->begin.version_copy != dest->part1.version) {
     status = 1;
-    err("mismatched elf version");
+    if ( err ) err("mismatched elf version");
   }
 
   if (dest->part1.version != EV_CURRENT) {
     status = 1;
-    err("invalid elf version");
+    if ( err ) err("invalid elf version");
   }
 
   return status;
@@ -167,7 +143,7 @@ int Elf_readSection(void** heapDest, size_t* sizeDest, Elf_Header const* elf, El
   *heapDest = malloc(section->sh_size);
 
   if ( !*heapDest ) {
-    err("out of memory");
+    if ( err ) err("out of memory");
     return 1;
   }
 
@@ -202,7 +178,7 @@ int Elf_getSymTable(Elf64_Sym** heapDest, size_t* sizeDest, Elf_Header const* el
 
     *heapDest = malloc(sizeof(Elf64_Sym) * num);
     if ( !*heapDest ) {
-      err("out of memory");
+      if ( err ) err("out of memory");
       free(h0);
       return 1;
     }
@@ -277,7 +253,7 @@ int OpElf_open(OpElf* dest, FILE* consumeFile, void (*err)(const char *))
 
   dest->sectionHeaders = malloc(sizeof(Elf64_SectionHeader) * dest->header.part3.shnum);
   if ( !dest->sectionHeaders ) {
-    err("out of memory");
+    if ( err ) err("out of memory");
     free(dest->master_strtab);
     fclose(consumeFile);
     return 1;
@@ -285,9 +261,11 @@ int OpElf_open(OpElf* dest, FILE* consumeFile, void (*err)(const char *))
 
   for ( size_t i = 0; i < dest->header.part3.shnum; i ++ ) {
     if ( Elf_decodeSectionHeader(&dest->sectionHeaders[i], i, &dest->header, consumeFile, err) ) {
-      char msg[128];
-      sprintf(msg, "failed to decode section header %zu", i);
-      err(msg);
+      if ( err) {
+        char msg[128];
+        sprintf(msg, "failed to decode section header %zu", i);
+        err(msg);
+      }
       OpElf_close(dest);
       return 1;
     }
