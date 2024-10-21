@@ -1,4 +1,5 @@
 #include "ar.h"
+#include <stdbool.h>
 
 int ArIter_open(ArIter* dest, FILE* consumeFile)
 {
@@ -170,4 +171,23 @@ void SmartArchive_continueNoData(SmartArchive* archv)
   ArIterFileHeader hd;
   ArIter_beginIter(&hd, &archv->_iter);
   ArIter_noDataAndNext(&hd, &archv->_iter);
+}
+
+int SmartArchive_findNext(SmartArchive* archv, void** heapOut, size_t* sizeOut, const char * fileName)
+{
+  char * nam;
+  while ( (nam = SmartArchive_nextFileNameHeap(archv) ) )
+  {
+    bool match = !strcmp(nam, fileName);
+    free(nam);
+
+    if ( match ) {
+      SmartArchive_continueWithData(heapOut, sizeOut, archv);
+      return 0;
+    }
+
+    SmartArchive_continueNoData(archv);
+  }
+
+  return 1;
 }

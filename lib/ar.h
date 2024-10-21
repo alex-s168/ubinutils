@@ -51,6 +51,7 @@ void SmartArchive_rewind(SmartArchive* archv);
 char * SmartArchive_nextFileNameHeap(SmartArchive* archv);
 int SmartArchive_continueWithData(void** heapOut, size_t* sizeOut, SmartArchive* archv);
 void SmartArchive_continueNoData(SmartArchive* archv);
+int SmartArchive_findNext(SmartArchive* archv, void** heapOut, size_t* sizeOut, const char * fileName);
 
 #endif
 
