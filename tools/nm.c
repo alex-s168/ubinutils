@@ -1,6 +1,7 @@
 #include "../lib/elf.h"
 #include "../lib/pe.h"
 #include "../lib/ar.h"
+#include "../lib/memfile.h"
 #include <inttypes.h>
 #include <string.h>
 #include <stdbool.h>
@@ -203,7 +204,7 @@ static void nmAr(SmartArchive* ar, size_t ptrstrwidth)
       return;
     }
 
-    FILE* file = fmemopen(data, size, "r");
+    FILE* file = memFileOpenReadOnly(data, size);
 
     if ( nmObjfile(file, ptrstrwidth) )
     {

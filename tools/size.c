@@ -1,6 +1,7 @@
 #include "../lib/pe.h"
 #include "../lib/elf.h"
 #include "../lib/ar.h"
+#include "../lib/memfile.h"
 #include <string.h>
 
 /*
@@ -108,7 +109,7 @@ static void sizeAr(SmartArchive* ar)
       return;
     }
 
-    FILE* file = fmemopen(data, size, "r");
+    FILE* file = memFileOpenReadOnly(data, size);
 
     if ( sizeObjfile(file, name) )
     {

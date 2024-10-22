@@ -92,8 +92,7 @@ int SmartArchive_open(SmartArchive* dest, FILE* consumeFile)
 
   if ( ArIter_findNext(&dest->exFileNames, NULL, &dest->_iter, "//              ") )
     dest->exFileNames = NULL;
-  else 
-    ArIter_rewind(&dest->_iter);
+  ArIter_rewind(&dest->_iter);
 
   return 0;
 }
