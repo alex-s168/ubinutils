@@ -76,7 +76,7 @@ static void arExtract(SmartArchive* a, int argc, char** argv, int* code)
       continue;
     }
 
-    FILE* fp = fopen(argv[i], "w");
+    FILE* fp = fopen(argv[i], "wb");
     if ( fp )
     {
       fwrite(data, 1, uz, fp);
@@ -104,7 +104,7 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  FILE* file = fopen(argv[2], "r");
+  FILE* file = fopen(argv[2], "rb");
   if ( !file ) {
     fprintf(stderr, "could not open file\n");
     return 1;
@@ -135,5 +135,6 @@ int main(int argc, char** argv)
   }
 
   SmartArchive_close(&a);
+  fclose(file);
   return code;
 }
