@@ -28,13 +28,16 @@ void ArIter_rewind(ArIter* i)
 
 bool ArIter_hasNext(ArIter* i)
 {
-  int c = fgetc(i->file);
-  ungetc(c, i->file);
-  return c != EOF;
+  long pos = ftell(i->file);
+  char t;
+  bool has = fread(&t, 1, 1, i->file); 
+  fseek(i->file, pos, SEEK_SET);
+  return has;
 }
 
 void ArIter_beginIter(ArIterFileHeader* hdest, ArIter* i)
 {
+  i->_last = ftell(i->file);
   Ar_FileHeader temp;
   fread(&temp, sizeof(Ar_FileHeader), 1, i->file);
   temp.padding[0] = '\0';
@@ -47,12 +50,12 @@ void ArIter_beginIter(ArIterFileHeader* hdest, ArIter* i)
 
 void ArIter_rewindBeginIter(ArIter* i) 
 {
-  fseek(i->file, - (long) sizeof(Ar_FileHeader), SEEK_CUR);
+  fseek(i->file, i->_last, SEEK_SET);
 }
 
 void ArIter_readDataAndNext(void* buf, ArIterFileHeader const* hd, ArIter* i)
 {
-  fread(buf, hd->fileSize, 1, i->file);
+  fread(buf, 1, hd->fileSize, i->file);
 }
 
 void ArIter_noDataAndNext(ArIterFileHeader const* hd, ArIter* i)
@@ -90,8 +93,11 @@ int SmartArchive_open(SmartArchive* dest, FILE* consumeFile)
     return 1;
 
 
-  if ( ArIter_findNext(&dest->exFileNames, NULL, &dest->_iter, "//              ") )
-    dest->exFileNames = NULL;
+  if ( ArIter_findNext(&dest->exFileNames, NULL, &dest->_iter, "//") ) {
+    ArIter_rewind(&dest->_iter);
+    if ( ArIter_findNext(&dest->exFileNames, NULL, &dest->_iter, "ARFILENAMES/") )
+        dest->exFileNames = NULL;
+  }
   ArIter_rewind(&dest->_iter);
 
   return 0;
@@ -116,38 +122,66 @@ char * SmartArchive_nextFileNameHeap(SmartArchive* archv)
 
   ArIterFileHeader hd;
   ArIter_beginIter(&hd, &archv->_iter);
-  ArIter_rewindBeginIter(&archv->_iter);
 
-  if ( archv->exFileNames && hd.filename[0] == '/' && !(hd.filename[1] == '/' || hd.filename[1] == ' ') )
+  if ( hd.filename[0] == '#' && hd.filename[1] == '1' && hd.filename[2] == '/' )
+  {
+    // BSD 4.4 long file names (the only sane way of doing long file names)
+    char temp[14];
+    temp[13] = '\0';
+    memcpy(temp, hd.filename + 3, 13);
+    size_t uz;
+    sscanf(temp, "%zu", &uz); 
+
+    char* actual = malloc(uz + 1);
+    if ( actual ) {
+      fread(actual, 1, uz, archv->_iter.file);
+      fseek(archv->_iter.file, -((long) uz), SEEK_CUR);
+    }
+
+    ArIter_rewindBeginIter(&archv->_iter);
+
+    return actual;
+  }
+  else if ( archv->exFileNames
+  && ((hd.filename[0] == ' ')
+     || (hd.filename[0] == '/' && !(hd.filename[1] == '/' || hd.filename[1] == ' '))) )
   {
     char temp[16];
-    memcpy(temp, hd.filename + 1, 15);
     temp[15] = '\0';
+    memcpy(temp, hd.filename + 1, 15);
     size_t off;
     sscanf(temp, "%zu", &off);
     const char* old = archv->exFileNames;
     old += off;
-    size_t count = strchr(old, '/') - old;
+    size_t count = strchr(old, '\n') - old;
     char * new = malloc(count + 1);
     if ( new ) {
       memcpy(new, old, count);
       new[count] = '\0';
+      char* slash = strchr(new, '/');
+      if ( slash ) {
+        *slash = '\0';
+      }
     }
+
+    ArIter_rewindBeginIter(&archv->_iter);
     return new;
   }
   else 
   {
     char* heap = malloc(17);
-    if ( !heap )
-      return NULL;
-    memcpy(heap, hd.filename, 16);
-    heap[16] = '\0';
-    char * space = strchr(heap, ' ');
-    if ( space )
-      *space = '\0';
-    char * slash = strchr(heap, '/');
-    if ( slash )
-      *slash = '\0';
+    if ( heap ) {
+      memcpy(heap, hd.filename, 16);
+      heap[16] = '\0';
+      char * space = strchr(heap, ' ');
+      if ( space )
+        *space = '\0';
+      char * slash = strchr(heap, '/');
+      if ( slash )
+        *slash = '\0';
+    }
+
+    ArIter_rewindBeginIter(&archv->_iter);
     return heap;
   }
 }

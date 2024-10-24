@@ -28,6 +28,7 @@ typedef struct {
 
 typedef struct {
   FILE* file;
+  long  _last;
 } ArIter;
 
 typedef struct {
