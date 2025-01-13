@@ -1,3 +1,5 @@
+#include <stddef.h>
+
 #define PLACE(valty, val) \
         ((valty*)((valty[]) {val}))
 
@@ -11,7 +13,7 @@
     varr = _res; \
   }
 
-static void memrevcpy(void* restrict dest, void const* restrict src, size_t bytes)
+static void memrevcpy(void* dest, void const* src, size_t bytes)
 {
   if (bytes == 0) return;
   unsigned char * udst = dest;
