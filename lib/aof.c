@@ -1,4 +1,3 @@
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -194,7 +193,7 @@ AofReloc const* Aof_readAreaRelocs(ChunkFile* cf, Aof* aof, size_t area_idx)
 /** 0 == ok */
 int Symtab_add(AofObj* out, SymtabEnt ent)
 {
-    size_t buck = hash((unsigned char const *) ent.namep, ent.namelen) % SYMTAB_N_BUCK;
+    size_t buck = hash((unsigned char const *) ent.namep, ent.namelen) % AOF_SYMTAB_N_BUCK;
 
     SymtabEnt* new = realloc(out->buckets[buck].ents, 
                              (out->buckets[buck].nents + 1) * sizeof(SymtabEnt));
@@ -210,7 +209,7 @@ int Symtab_add(AofObj* out, SymtabEnt ent)
 
 void AofObj_close(AofObj* obj)
 {
-    for (size_t i = 0; i < SYMTAB_N_BUCK; i ++)
+    for (size_t i = 0; i < AOF_SYMTAB_N_BUCK; i ++)
     {
         free(obj->buckets[i].ents);
     }

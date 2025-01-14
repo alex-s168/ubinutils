@@ -138,7 +138,7 @@ size_t Aof_areaFileOffset(ChunkFile* cf, Aof* aof, size_t idx);
 
 AofReloc const* Aof_readAreaRelocs(ChunkFile* cf, Aof* aof, size_t area_idx);
 
-#define SYMTAB_N_BUCK (16)
+#define AOF_SYMTAB_N_BUCK (16)
 
 typedef struct {
     size_t namelen;
@@ -155,7 +155,7 @@ typedef struct {
     Aof aof;
     ChunkFile ch;
 
-    SymtabBucket buckets[SYMTAB_N_BUCK];
+    SymtabBucket buckets[AOF_SYMTAB_N_BUCK];
 } AofObj;
 
 /** 0 == ok */
