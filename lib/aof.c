@@ -4,135 +4,12 @@
 #include <stdbool.h>
 #include <string.h>
 #include <assert.h>
-#include <sys/types.h>
 #include "utils.h"
+#include "chunkfile.h"
 
 #ifndef PACKED
 # define PACKED __attribute__ ((packed))
 #endif 
-
-static uint32_t CHUNK_FILE_MAGIC     = 0xC3CBC6C5;
-static uint32_t CHUNK_FILE_REV_MAGIC = 0xC5C6CBC3;
-
-typedef char ChunkFile_ChunkID[8];
-
-typedef struct
-{
-    uint32_t magic;
-    uint32_t max_chunks;
-    uint32_t num_chunks;
-} PACKED ChunkFile_Header;
-
-typedef struct
-{
-    ChunkFile_ChunkID id;
-    /** zero if unused */
-    uint32_t file_offset;
-    uint32_t size;
-} PACKED ChunkFile_EntHeader;
-
-typedef struct
-{
-    bool read_swapped;
-    FILE* file;
-    uint32_t num_chunks;
-    ChunkFile_EntHeader * chunks;
-
-    struct {
-        ChunkFile_EntHeader * obj_head;
-        ChunkFile_EntHeader * obj_area;
-        ChunkFile_EntHeader * obj_identification;
-        ChunkFile_EntHeader * obj_symtab;
-        ChunkFile_EntHeader * obj_strtab;
-    } headers;
-
-    char * lazy_strtab;
-} ChunkFile;
-
-void ChunkFile_close(ChunkFile* file)
-{
-    if (file->lazy_strtab)
-        free(file->lazy_strtab);
-    free(file->chunks);
-    fclose(file->file);
-}
-
-ChunkFile_EntHeader * ChunkFile_findHeader(ChunkFile const* file, char const * name)
-{
-    for (size_t i = 0; i < file->num_chunks; i ++)
-    {
-        ChunkFile_EntHeader* hdr = &file->chunks[i];
-
-        char s[9];
-        memcpy(s, hdr->id, 8);
-        s[8] = '\0';
-
-        if ( !strcmp(s, name) ) {
-            return hdr;
-        }
-    }
-
-    return NULL;
-}
-
-/** 0 = ok; ownership of fp is taken; fp is rewinded() ! */
-int ChunkFile_open(ChunkFile* out, FILE* fp)
-{
-    out->file = fp;
-    out->lazy_strtab = NULL;
-
-    ChunkFile_Header header;
-    rewind(fp);
-    if ( fread(&header, sizeof(ChunkFile_Header), 1, fp) != 1 ) {
-        fclose(fp);
-        return 1;
-    }
-
-    bool swap;
-    if ( header.magic == CHUNK_FILE_MAGIC ) {
-        swap = false;
-    } else if ( header.magic == CHUNK_FILE_REV_MAGIC ) {
-        swap = true;
-    } else {
-        fclose(fp);
-        return 1;
-    }
-    out->read_swapped = swap;
-
-    if ( swap ) {
-        endianess_swap(header.max_chunks);
-        endianess_swap(header.num_chunks);
-    }
-
-    out->num_chunks = header.num_chunks;
-    out->chunks = malloc(sizeof(ChunkFile_EntHeader) * out->num_chunks);
-    if (!out->chunks) {
-        fclose(fp);
-        return 1;
-    }
-
-    if ( fread(out->chunks, sizeof(ChunkFile_EntHeader), out->num_chunks, fp) != out->num_chunks ) {
-        fclose(fp);
-        free(out->chunks);
-        return 1;
-    }
-
-    if ( swap ) {
-        for (size_t i = 0; i < out->num_chunks; i ++) {
-            ChunkFile_EntHeader* p = &out->chunks[i];
-            endianess_swap(p->size);
-            endianess_swap(p->file_offset);
-        }
-    }
-
-    out->headers.obj_head = ChunkFile_findHeader(out, "OBJ_HEAD");
-    out->headers.obj_area = ChunkFile_findHeader(out, "OBJ_AREA");
-    out->headers.obj_identification = ChunkFile_findHeader(out, "OBJ_IDFN");
-    out->headers.obj_symtab = ChunkFile_findHeader(out, "OBJ_SYMT");
-    out->headers.obj_strtab = ChunkFile_findHeader(out, "OBJ_STRT");
-
-    return 0;
-}
 
 typedef struct {
     uint32_t file_type;
@@ -436,47 +313,85 @@ AofReloc const* Aof_readAreaRelocs(ChunkFile* cf, Aof* aof, size_t area_idx)
     return relocs;
 }
 
-static char * ChunkFile_readChunk(ChunkFile * cf, ChunkFile_EntHeader * hd)
+#define SYMTAB_N_BUCK (16)
+
+typedef struct {
+    size_t namelen;
+    char const * namep;
+    AofSym *p;
+} SymtabEnt;
+
+typedef struct {
+    SymtabEnt * ents;
+    size_t      nents;
+} SymtabBucket;
+
+typedef struct {
+    Aof aof;
+    ChunkFile ch;
+
+    SymtabBucket buckets[SYMTAB_N_BUCK];
+} AofObj;
+
+/** 0 == ok */
+static int Symtab_add(AofObj* out, SymtabEnt ent)
 {
-    char * out = malloc(hd->size);
-    if ( !out )
-        return NULL;
+    size_t buck = hash((unsigned char const *) ent.namep, ent.namelen) % SYMTAB_N_BUCK;
 
-    fseek(cf->file, hd->file_offset, SEEK_SET);
-    if ( fread(out, 1, hd->size, cf->file) != hd->size )
-    {
-        free(out);
-        return NULL;
-    }
+    SymtabEnt* new = realloc(out->buckets[buck].ents, 
+                             (out->buckets[buck].nents + 1) * sizeof(SymtabEnt));
+    if ( new == NULL )
+        return 1;
 
-    return out;
+    new[out->buckets[buck].nents ++] = ent;
+
+    out->buckets[buck].ents = new;
+
+    return 0;
 }
 
-static char * ChunkFile_readIdentHeap(ChunkFile * cf)
+void AofObj_close(AofObj* obj)
 {
-    if ( !cf->headers.obj_identification )
-        return NULL;
-
-    return ChunkFile_readChunk(cf, cf->headers.obj_identification);
-}
-
-static char const* ChunkFile_getStr(ChunkFile * cf, uint32_t strid)
-{
-    if ( !cf->headers.obj_strtab )
-        return NULL;
-
-    if ( !cf->lazy_strtab )
+    for (size_t i = 0; i < SYMTAB_N_BUCK; i ++)
     {
-        cf->lazy_strtab = ChunkFile_readChunk(cf, cf->headers.obj_strtab);
-
-        if ( !cf->lazy_strtab )
-            return NULL;
+        free(obj->buckets[i].ents);
     }
 
-    if ( strid >= cf->headers.obj_strtab->size )
-        return NULL;
+    Aof_free(&obj->aof);
+    ChunkFile_close(&obj->ch);
+}
 
-    return cf->lazy_strtab + strid;
+/** takes ownership of file */
+int AofObj_open(AofObj* out, FILE* file)
+{
+    memset(out, 0, sizeof(AofObj));
+
+    if ( ChunkFile_open(&out->ch, file) != 0 )
+        return 1;
+
+    if ( Aof_read(&out->aof, &out->ch) != 0 )
+    {
+        ChunkFile_close(&out->ch);
+        return 1;
+    }
+
+    for (size_t i = 0; i < out->aof.header.num_syms; i ++)
+    {
+        AofSym* s = &out->aof.syms[i];
+        char const* name = ChunkFile_getStr(&out->ch, s->name);
+        if ( name == NULL )
+        {
+            AofObj_close(out);
+            return 1;
+        }
+        Symtab_add(out, (SymtabEnt) {
+            .namelen = strlen(name),
+            .namep = name,
+            .p = s,
+        });
+    }
+
+    return 0;
 }
 
 int main(int argc, char ** argv)

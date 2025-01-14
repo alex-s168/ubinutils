@@ -1,4 +1,8 @@
+#ifndef _UTILS_H
+#define _UTILS_H
+
 #include <stddef.h>
+#include <stdint.h>
 
 #define PLACE(valty, val) \
         ((valty*)((valty[]) {val}))
@@ -23,3 +27,22 @@ static void memrevcpy(void* dest, void const* src, size_t bytes)
     udst[d--] = usrc[i];
   }
 }
+
+#define FNV1A(type, prime, offset, dest, value, valueSize) { \
+    type hash = offset;                                      \
+    for (size_t i = 0; i < valueSize; i ++) {                \
+        uint8_t byte = ((uint8_t *)value)[i];                \
+        hash ^= byte;                                        \
+        hash *= prime;                                       \
+    }                                                        \
+    *(type *)dest = hash;                                    \
+}
+
+static uint64_t hash(const unsigned char * data, int len)
+{
+    uint64_t res;
+    FNV1A(uint64_t, 0x100000001B3, 0xcbf29ce484222325, &res, data, len);
+    return res;
+}
+
+#endif
