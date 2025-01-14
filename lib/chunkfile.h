@@ -50,7 +50,7 @@ void ChunkFile_close(ChunkFile* file);
 
 ChunkFile_EntHeader * ChunkFile_findHeader(ChunkFile const* file, char const * name);
 
-/** 0 = ok; ownership of fp is taken; fp is rewinded() ! */
+/** 0 = ok; ownership of fp is NOT taken; fp is rewinded() ! */
 int ChunkFile_open(ChunkFile* out, FILE* fp);
 
 char * ChunkFile_readChunk(ChunkFile * cf, ChunkFile_EntHeader * hd);

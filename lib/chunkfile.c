@@ -15,7 +15,6 @@ void ChunkFile_close(ChunkFile* file)
     if (file->lazy_strtab)
         free(file->lazy_strtab);
     free(file->chunks);
-    fclose(file->file);
 }
 
 ChunkFile_EntHeader * ChunkFile_findHeader(ChunkFile const* file, char const * name)
@@ -45,7 +44,6 @@ int ChunkFile_open(ChunkFile* out, FILE* fp)
     ChunkFile_Header header;
     rewind(fp);
     if ( fread(&header, sizeof(ChunkFile_Header), 1, fp) != 1 ) {
-        fclose(fp);
         return 1;
 }
 
@@ -55,7 +53,6 @@ int ChunkFile_open(ChunkFile* out, FILE* fp)
     } else if ( header.magic == CHUNK_FILE_REV_MAGIC ) {
         swap = true;
     } else {
-fclose(fp);
         return 1;
     }
     out->read_swapped = swap;
@@ -68,12 +65,10 @@ fclose(fp);
     out->num_chunks = header.num_chunks;
     out->chunks = malloc(sizeof(ChunkFile_EntHeader) * out->num_chunks);
     if (!out->chunks) {
-        fclose(fp);
         return 1;
     }
 
     if ( fread(out->chunks, sizeof(ChunkFile_EntHeader), out->num_chunks, fp) != out->num_chunks ) {
-        fclose(fp);
         free(out->chunks);
         return 1;
     }

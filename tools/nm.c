@@ -2,6 +2,7 @@
 #include "../lib/pe.h"
 #include "../lib/ar.h"
 #include "../lib/memfile.h"
+#include "../lib/aof.h"
 #include <inttypes.h>
 #include <string.h>
 #include <stdbool.h>
@@ -93,6 +94,38 @@ static void nmElf(OpElf* elf, size_t ptrstrwidth)
   }
 }
 
+static void nmAof(AofObj* o, size_t ptrstrwidth)
+{
+    for (size_t sy = 0; sy < o->aof.header.num_syms; sy ++)
+    {
+        AofSym* sym = &o->aof.syms[sy];
+        if ( sym->attribs & AofSymAttr_ABS && sym->value ) {
+          printf("%016" PRIXPTR, (uintptr_t) sym->value);
+        } else {
+          for ( size_t i = 0; i < ptrstrwidth; i ++ )
+            fputc(' ', stdout);
+        }
+
+        char id = '?';
+        if ( sym->attribs & AofSymAttr_ABS )
+            id = 'A';
+        else 
+        {
+            AofAreaAttrib area = o->aof.areas[sym->ref_area].attributes;
+            if ( (area &  AofAreaAttrib_CODE) && (sym->attribs & AofSymAttr_DEFINE) )
+                id = ( sym->attribs & AofSymAttr_GLOBAL ) ? 'T' : 't';
+            else if ( (area &  AofAreaAttrib_R_ONLY) && (sym->attribs & AofSymAttr_DEFINE) )
+                id = ( sym->attribs & AofSymAttr_GLOBAL ) ? 'R' : 'r';
+            else if ( sym->attribs & AofSymAttr_DEFINE )
+                id = ( sym->attribs & AofSymAttr_GLOBAL ) ? 'D' : 'd';
+        }
+
+        char const* name = ChunkFile_getStr(&o->ch, sym->name);
+
+        printf(" %c %s\n", id, name);
+    }
+}
+
 static void nmPe(OpPe* pe, size_t ptrstrwidth)
 {
   OpPe_rewindToSyms(pe);
@@ -181,6 +214,15 @@ static int nmObjfile(FILE* file, size_t ptrstrwidth)
   {
     nmPe(&pe, ptrstrwidth);
     OpPe_close(&pe);
+    return 0;
+  }
+
+  AofObj aof;
+  rewind(file);
+  if ( !AofObj_open(&aof, file) )
+  {
+    nmAof(&aof, ptrstrwidth);
+    AofObj_close(&aof);
     return 0;
   }
 
