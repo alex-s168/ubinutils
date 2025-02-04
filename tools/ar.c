@@ -179,8 +179,10 @@ static int gen_ar(char * out, char ** ins, size_t num_ins, bool ranlib) {
       rewind(infile);
 
       OpElf elf;
-      if ( !OpElf_open(&elf, infile, NULL) )
+      if ( OpElf_open(&elf, infile, NULL) ) {
+        printf("could not generate symbol indexes for %s\n", ins[i]);
         continue;
+      }
 
       ssize_t symtab = OpElf_findSection(&elf, ".symtab");
       if ( symtab == -1 )
@@ -244,7 +246,6 @@ static int gen_ar(char * out, char ** ins, size_t num_ins, bool ranlib) {
       }
 
       OpElf_close(&elf);
-      handles[i] = NULL;
     }
 
     if ( syms_offs_len > 0 )

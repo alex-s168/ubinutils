@@ -2,27 +2,17 @@
 #include <stdlib.h>
 #include <assert.h>
 
-int main(int argc, char ** argv)
+static int op_info(Aof aof, ChunkFile ch, char const* arg)
 {
-    if (argc != 2) return 1;
-    FILE* f = fopen(argv[1], "rb");
-    if (!f) return 1;
-    ChunkFile ch = {0};
-    if ( ChunkFile_open(&ch, f) != 0 ) {
-        printf("doesn't seem like a AOF file\n");
+    (void) arg;
+
+    if (!ch.headers.obj_strtab)
         return 1;
-    }
-    Aof aof = {0};
-    if ( Aof_read(&aof, &ch) != 0 ) {
-        printf("doesn't seem like a AOF file\n");
-        ChunkFile_close(&ch);
-        return 1;
-    }
+
     printf("compiler identification: %s\n", ChunkFile_readIdentHeap(&ch));
     printf("areas:\n");
     for (size_t i = 0; i < aof.header.num_areas; i ++) {
         AofAreaHeader* h = &aof.areas[i];
-        assert(ch.headers.obj_strtab);
         char const* name = ChunkFile_getStr(&ch, h->name);
         char * astr = AofAreaAttrib_str(h->attributes);
         uint8_t align = AofAreaHeader_alignment(h);
@@ -30,7 +20,7 @@ int main(int argc, char ** argv)
         printf("    relocs (%u):\n", h->num_relocs);
         AofReloc const* relocs = Aof_readAreaRelocs(&ch, &aof, i);
         if ( !relocs )
-            printf("    bruh\n");
+            return 1;
         else {
             for (size_t r = 0; r < h->num_relocs; r ++)
             {
@@ -63,8 +53,78 @@ int main(int argc, char ** argv)
         }
         printf("\n");
     }
+
+    return 0;
+}
+
+static int op_areaextract(Aof aof, ChunkFile ch, char const * arg)
+{
+    if ( !arg )
+        return 1;
+
+    if ( !ch.headers.obj_strtab )
+        return 1;
+
+    for (size_t i = 0; i < aof.header.num_areas; i ++)
+    {
+        AofAreaHeader* h = &aof.areas[i];
+        char const* name = ChunkFile_getStr(&ch, h->name);
+        if ( strcmp(name, arg) )
+            continue;
+
+        size_t off = Aof_areaFileOffset(&ch, &aof, i);
+        fseek(ch.file, off, SEEK_SET);
+
+        for (size_t j = 0; j < h->size; j ++)
+        {
+            int c = fgetc(ch.file);
+            if ( c == EOF )
+                continue;
+
+            fputc(c, stdout);
+        }
+
+        fflush(stdout);
+        return 0;
+    }
+
+    return 1;
+}
+
+int main(int argc, char ** argv)
+{
+    if (argc < 2) return 1;
+    FILE* f = fopen(argv[1], "rb");
+    if (!f) return 1;
+
+    char const* op = argc > 2 ? argv[2] : NULL;
+    char const* oparg = argc > 3 ? argv[3] : NULL;
+
+    ChunkFile ch = {0};
+    if ( ChunkFile_open(&ch, f) != 0 ) {
+        printf("doesn't seem like a AOF file\n");
+        return 1;
+    }
+    Aof aof = {0};
+    if ( Aof_read(&aof, &ch) != 0 ) {
+        printf("doesn't seem like a AOF file\n");
+        ChunkFile_close(&ch);
+        return 1;
+    }
+
+    int status;
+    if ( !strcmp(op, "extract-area") )
+        status = op_areaextract(aof, ch, oparg);
+    else if ( !strcmp(op, "info") )
+        status = op_info(aof, ch, oparg);
+    else {
+        status = 1;
+        printf("Invalid usage\n");
+    }
+
     Aof_free(&aof);
     ChunkFile_close(&ch);
-    return 0;
+
+    return status;
 }
 
