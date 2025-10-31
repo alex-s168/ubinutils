@@ -14,7 +14,6 @@ Partial, tiny, and portable implementation of some binutils tools without any de
 
 ## Building
 ```shell
-clang -o nm lib/*.c tools/nm.c
-clang -o ar lib/*.c tools/ar.c
-clang -o size lib/*.c tools/size.c
+meson setup build
+meson compile -C build
 ```

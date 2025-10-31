@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <ctype.h>
 
 #define PLACE(valty, val) \
         ((valty*)((valty[]) {val}))
@@ -43,6 +44,18 @@ static uint64_t hash(const unsigned char * data, int len)
     uint64_t res;
     FNV1A(uint64_t, 0x100000001B3, 0xcbf29ce484222325, &res, data, len);
     return res;
+}
+
+static int strieq(char const* a, char const* b)
+{
+  while (*a && *b)
+  {
+    if (tolower(*a) != tolower(*b))
+      return 0;
+    a++;
+    b++;
+  }
+  return *a == *b;
 }
 
 #endif

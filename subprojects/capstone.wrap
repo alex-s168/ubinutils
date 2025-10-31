@@ -1,0 +1,8 @@
+[wrap-git]
+url = https://github.com/alex-s168/etca-capstone.git
+revision = e058ad6dd6b856842888f9883910c0499eaadf32
+directory = capstone
+depth = 1
+
+[provide]
+capstone = capstone_dep

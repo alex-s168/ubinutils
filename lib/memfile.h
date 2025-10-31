@@ -1,6 +1,7 @@
 #ifndef _MEMFILE_H
 #define _MEMFILE_H
 
+#define _GNU_SOURCE
 #include <stddef.h>
 #include <stdio.h>
 
