@@ -9,7 +9,7 @@ typedef struct {
 
   struct {
     bool supported;
-    unsigned long arch;
+    unsigned arch;
   } capstone;
 } ubu_arch_t;
 
