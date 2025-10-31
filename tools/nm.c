@@ -1,8 +1,8 @@
-#include "../lib/elf.h"
-#include "../lib/pe.h"
-#include "../lib/ar.h"
-#include "../lib/memfile.h"
-#include "../lib/aof.h"
+#include "ubu/elf.h"
+#include "ubu/pe.h"
+#include "ubu/ar.h"
+#include "ubu/memfile.h"
+#include "ubu/aof.h"
 #include <inttypes.h>
 #include <string.h>
 #include <stdbool.h>

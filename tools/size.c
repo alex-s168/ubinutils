@@ -1,7 +1,7 @@
-#include "../lib/pe.h"
-#include "../lib/elf.h"
-#include "../lib/ar.h"
-#include "../lib/memfile.h"
+#include "ubu/pe.h"
+#include "ubu/elf.h"
+#include "ubu/ar.h"
+#include "ubu/memfile.h"
 #include <string.h>
 
 /*

@@ -1,4 +1,4 @@
-#include "../lib/aof.h"
+#include "ubu/aof.h"
 #include <stdlib.h>
 #include <assert.h>
 

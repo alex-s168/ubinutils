@@ -1,5 +1,5 @@
-#include "../lib/ar.h"
-#include "../lib/elf.h"
+#include "ubu/ar.h"
+#include "ubu/elf.h"
 
 static void print_usage()
 {

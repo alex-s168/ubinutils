@@ -4,36 +4,42 @@ project('ubinutils', ['c'],
     'wrap_mode=forcefallback',
   ])
 
+cmake = import('cmake')
+capstone = cmake.subproject('capstone')
+capstone_dep = capstone.dependency('capstone')
+
 src = [
-  './lib/aof.c',
-  './lib/ar.c',
-  './lib/chunkfile.c',
-  './lib/elf.c',
-  './lib/pe.c',
+  './src/aof.c',
+  './src/ar.c',
+  './src/chunkfile.c',
+  './src/elf.c',
+  './src/pe.c',
+  './src/arch.c',
+  './src/utils.c',
 ]
 
 headers = [
-  './lib/aof.h',
-  './lib/ar.h',
-  './lib/chunkfile.h',
-  './lib/elf.h',
-  './lib/memfile.h',
+  './include/ubu/aof.h',
+  './include/ubu/ar.h',
+  './include/ubu/chunkfile.h',
+  './include/ubu/elf.h',
+  './include/ubu/memfile.h',
+  './include/ubu/arch.h',
 ]
 
 ubu = static_library(
   'ubu',
   sources: src,
-  install: true)
+  install: true,
+  include_directories: ['include'],
+  dependencies: [capstone_dep])
 
 ubu_dep = declare_dependency(
-  include_directories: ['lib'],
+  include_directories: ['include'],
   link_with: ubu)
 
 install_headers(headers, install_dir: 'include/ubu/')
 
-cmake = import('cmake')
-capstone = cmake.subproject('capstone')
-capstone_dep = capstone.dependency('capstone')
 
 if not meson.is_subproject()
   executable('ar',
